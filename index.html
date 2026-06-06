@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tixcraft Monitor — BTS 22764</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #111; --border: #1e1e1e; --border-bright: #2e2e2e;
+    --accent: #e8ff47; --accent-dim: rgba(232,255,71,0.10); --accent-glow: rgba(232,255,71,0.25);
+    --green: #2ed573; --green-dim: rgba(46,213,115,0.12);
+    --red: #ff4757; --red-dim: rgba(255,71,87,0.12);
+    --text: #f0f0f0; --text-dim: #888; --text-muted: #444;
+    --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif; --display: 'Bebas Neue', sans-serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+  body::after {
+    content: ''; position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px; border-bottom: 1px solid var(--border);
+    background: rgba(10,10,10,0.96); backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: baseline; gap: 10px; }
+  .logo-main { font-family: var(--display); font-size: 26px; letter-spacing: 3px; color: var(--accent); }
+  .logo-sub { font-family: var(--mono); font-size: 10px; color: var(--text-muted); letter-spacing: 3px; }
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 6px 16px; border-radius: 20px;
+    border: 1px solid var(--border-bright); color: var(--text-dim); transition: all 0.3s;
+  }
+  .status-pill.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); box-shadow: 0 0 20px var(--accent-glow); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); transition: all 0.3s; }
+  .status-pill.active .dot { background: var(--accent); animation: blink 1.4s ease infinite; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+  main { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; display: flex; flex-direction: column; gap: 24px; }
+
+  .event-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 4px;
+    padding: 22px 28px; position: relative; overflow: hidden;
+  }
+  .event-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  }
+  .event-label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; }
+  .event-title { font-family: var(--display); font-size: 26px; letter-spacing: 2px; color: var(--text); line-height: 1; }
+  .event-meta { font-family: var(--mono); font-size: 12px; color: var(--text-dim); margin-top: 8px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .event-meta span { display: flex; align-items: center; gap: 6px; }
+  .event-meta span::before { content: '▸'; color: var(--accent); font-size: 8px; }
+
+  /* proxy selector */
+  .proxy-bar {
+    background: #0d0d0d; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 0 3px 3px 0; padding: 14px 18px;
+    font-family: var(--mono); font-size: 11px; line-height: 2; color: var(--text-dim);
+  }
+  .proxy-bar strong { color: var(--accent); }
+  .proxy-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+  .proxy-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+    padding: 7px 14px; border-radius: 3px; border: 1px solid var(--border-bright);
+    background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+  }
+  .proxy-btn.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .proxy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat { background: #0a0a0a; border: 1px solid var(--border); border-radius: 3px; padding: 16px; }
+  .stat-label { font-family: var(--mono); font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+  .stat-value { font-family: var(--display); font-size: 32px; color: var(--text); }
+  .stat-value.accent { color: var(--accent); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 11px 22px; border: none; border-radius: 3px; cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-accent { background: var(--accent); color: #000; font-weight: 500; }
+  .btn-accent:hover { background: #f2ff6e; transform: translateY(-1px); }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-red:hover { background: #ff6b78; }
+  .btn-outline { background: transparent; color: var(--text-dim); border: 1px solid var(--border-bright); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .countdown-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 14px; display: none; }
+  .countdown-fill { height: 100%; background: var(--accent); width: 100%; transition: width 1s linear; box-shadow: 0 0 8px var(--accent-glow); }
+
+  #avail-panel {
+    display: none; background: var(--surface); border: 1px solid var(--green); border-radius: 4px;
+    overflow: hidden; box-shadow: 0 0 30px rgba(46,213,115,0.12);
+    animation: panelIn 0.4s cubic-bezier(0.34,1.2,0.64,1);
+  }
+  @keyframes panelIn { from{opacity:0;transform:translateY(-12px);} to{opacity:1;transform:translateY(0);} }
+  .avail-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; background: var(--green-dim); border-bottom: 1px solid rgba(46,213,115,0.2);
+  }
+  .avail-header-label { font-family: var(--display); font-size: 18px; letter-spacing: 2px; color: var(--green); }
+  .avail-count { font-family: var(--mono); font-size: 11px; color: var(--green); opacity: 0.7; }
+  #avail-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+  .ticket-card {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 16px;
+    background: #0a0a0a; border: 1px solid rgba(46,213,115,0.25); border-radius: 3px;
+    padding: 14px 16px; animation: slideIn 0.3s ease;
+  }
+  .ticket-card.new { border-color: var(--accent); background: var(--accent-dim); }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-8px);} to{opacity:1;transform:translateX(0);} }
+  .ticket-name { font-family: var(--mono); font-size: 13px; color: var(--text); }
+  .ticket-name small { display: block; font-size: 10px; color: var(--text-dim); margin-top: 3px; letter-spacing: 1px; }
+  .ticket-price { font-family: var(--display); font-size: 22px; color: var(--green); white-space: nowrap; }
+  .ticket-card.new .ticket-price { color: var(--accent); }
+  .buy-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 9px 16px; border-radius: 3px; text-decoration: none;
+    background: var(--green); color: #000; font-weight: 500; transition: all 0.15s; white-space: nowrap;
+  }
+  .buy-btn:hover { background: #4dffa0; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(46,213,115,0.3); }
+  .ticket-card.new .buy-btn { background: var(--accent); }
+  .ticket-card.new .buy-btn:hover { background: #f2ff6e; }
+
+  .section-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--border); background: #0d0d0d;
+  }
+  .section-header-label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); }
+  .section-badge { font-family: var(--mono); font-size: 11px; padding: 3px 10px; border-radius: 2px; }
+  .badge-sold { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+  .badge-avail { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); animation: glowPulse 1s ease infinite; }
+  @keyframes glowPulse { 0%,100%{box-shadow:0 0 0 rgba(46,213,115,0);} 50%{box-shadow:0 0 12px rgba(46,213,115,0.4);} }
+
+  #section-list { max-height: 320px; overflow-y: auto; padding: 8px 0; }
+  .section-item {
+    display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px;
+    padding: 8px 16px; font-family: var(--mono); font-size: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .section-item:last-child { border-bottom: none; }
+  .section-item.sold { color: var(--text-muted); }
+  .section-item.available { color: var(--green); background: rgba(46,213,115,0.05); }
+  .section-item.new-available { color: var(--accent); background: var(--accent-dim); }
+  .section-price { opacity: 0.7; font-size: 10px; }
+  .section-link {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; text-decoration: none;
+    background: var(--green); color: #000; font-weight: 500;
+  }
+  .section-link:hover { background: #4dffa0; }
+  .new-available .section-link { background: var(--accent); }
+
+  .log-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .log-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); background: #0d0d0d; }
+  .log-head-label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); }
+  #log-body { max-height: 260px; overflow-y: auto; }
+  .log-row {
+    display: grid; grid-template-columns: 90px 60px 1fr; gap: 12px;
+    padding: 8px 20px; font-family: var(--mono); font-size: 11px;
+    border-bottom: 1px solid rgba(255,255,255,0.03); animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from{opacity:0;} to{opacity:1;} }
+  .log-row.info { color: var(--text-muted); }
+  .log-row.alert { background: var(--green-dim); color: var(--green); }
+  .log-row.error { background: var(--red-dim); color: var(--red); }
+  .log-row.warn { background: rgba(255,170,0,0.08); color: #ffaa00; }
+  .log-empty { padding: 28px; text-align: center; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
+
+  #alert-overlay {
+    display: none; position: fixed; top: 24px; right: 24px; z-index: 9998;
+    background: var(--green); color: #000; border-radius: 4px; padding: 18px 24px;
+    box-shadow: 0 0 50px rgba(46,213,115,0.5); animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1); max-width: 380px;
+  }
+  @keyframes popIn { from{opacity:0;transform:scale(0.8) translateY(-10px);} to{opacity:1;transform:scale(1) translateY(0);} }
+  .alert-title { font-family: var(--display); font-size: 24px; letter-spacing: 2px; }
+  .alert-body { font-family: var(--mono); font-size: 11px; margin-top: 4px; opacity: 0.7; }
+  .alert-links { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .alert-buy-link {
+    display: block; background: #000; color: var(--green);
+    font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 2px;
+    text-decoration: none; letter-spacing: 1px;
+  }
+  .alert-buy-link:hover { background: #111; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div id="alert-overlay">
+  <div class="alert-title">🎟 TICKETS OPEN</div>
+  <div class="alert-body" id="alert-body-text"></div>
+  <div class="alert-links" id="alert-links"></div>
+</div>
+
+<header>
+  <div class="logo">
+    <span class="logo-main">TICKET WATCH</span>
+    <span class="logo-sub">拓元 · 22764 · NOV 22</span>
+  </div>
+  <div class="status-pill" id="status-pill">
+    <div class="dot"></div>
+    <span id="status-text">IDLE</span>
+  </div>
+</header>
+
+<main>
+
+  <div class="event-card">
+    <div class="event-label">Monitoring Target</div>
+    <div class="event-title">BTS WORLD TOUR 'ARIRANG' IN KAOHSIUNG</div>
+    <div class="event-meta">
+      <span>2026/11/22 (Sun.) 19:00</span>
+      <span>高雄國家體育場</span>
+      <span>Game ID: 22764</span>
+    </div>
+  </div>
+
+  <!-- Proxy selector -->
+  <div class="proxy-bar">
+    <strong>NO EXTENSION NEEDED.</strong> Select a proxy below — the tool will route through it automatically.<br>
+    If one proxy fails, stop and try the next one.
+    <div class="proxy-row">
+      <button class="proxy-btn selected" onclick="selectProxy(0, this)">corsproxy.io</button>
+      <button class="proxy-btn" onclick="selectProxy(1, this)">allorigins.win</button>
+      <button class="proxy-btn" onclick="selectProxy(2, this)">api.codetabs.com</button>
+      <span id="proxy-status" style="font-size:10px;color:var(--text-muted);margin-left:4px;"></span>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-label">Total Sections</div><div class="stat-value" id="stat-total">--</div></div>
+    <div class="stat"><div class="stat-label">Sold Out</div><div class="stat-value red" id="stat-sold">--</div></div>
+    <div class="stat"><div class="stat-label">Available</div><div class="stat-value green" id="stat-avail">0</div></div>
+    <div class="stat"><div class="stat-label">Next Poll</div><div class="stat-value accent" id="stat-next">--</div></div>
+  </div>
+
+  <div>
+    <div class="controls">
+      <button class="btn btn-accent" id="btn-start" onclick="startMonitor()">START MONITORING</button>
+      <button class="btn btn-red" id="btn-stop" onclick="stopMonitor()" style="display:none">STOP</button>
+      <button class="btn btn-outline" onclick="requestNotif()">ALLOW NOTIFICATIONS</button>
+      <button class="btn btn-outline" onclick="clearLog()">CLEAR LOG</button>
+    </div>
+    <div class="countdown-bar" id="countdown-bar">
+      <div class="countdown-fill" id="countdown-fill"></div>
+    </div>
+  </div>
+
+  <div id="avail-panel">
+    <div class="avail-header">
+      <span class="avail-header-label">🎟 AVAILABLE NOW — BUY IMMEDIATELY</span>
+      <span class="avail-count" id="avail-count"></span>
+    </div>
+    <div id="avail-list"></div>
+  </div>
+
+  <div class="section-wrapper">
+    <div class="section-header">
+      <span class="section-header-label">All Sections</span>
+      <span class="section-badge badge-sold" id="section-badge">WAITING FOR FIRST POLL</span>
+    </div>
+    <div id="section-list">
+      <div class="log-empty">Start the monitor to see section availability.</div>
+    </div>
+  </div>
+
+  <div class="log-wrap">
+    <div class="log-head">
+      <span class="log-head-label">Activity Log</span>
+    </div>
+    <div id="log-body">
+      <div class="log-empty">No activity yet.</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const BASE = 'https://tixcraft.com';
+  const TARGET_URL = BASE + '/ticket/area/26_btskns/22764';
+  const INTERVAL = 30000;
+
+  // ── Proxy configs — no cookie needed, proxy fetches the public HTML ──────
+  const PROXIES = [
+    {
+      name: 'corsproxy.io',
+      build: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+      extract: async res => await res.text()
+    },
+    {
+      name: 'allorigins.win',
+      build: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      extract: async res => { const j = await res.json(); return j.contents; }
+    },
+    {
+      name: 'api.codetabs.com',
+      build: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+      extract: async res => await res.text()
+    }
+  ];
+
+  let selectedProxy = 0;
+  let monitorInterval = null;
+  let countdownInterval = null;
+  let countdownVal = 0;
+  let prevSections = {};
+  let firstPoll = true;
+
+  function selectProxy(idx, btn) {
+    selectedProxy = idx;
+    document.querySelectorAll('.proxy-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('proxy-status').textContent = '';
+  }
+
+  // ── Audio ──────────────────────────────────────────────────────────────────
+  function playAlert() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [[880,0,0.12],[1100,0.15,0.12],[1320,0.30,0.12],[880,0.45,0.08],[1320,0.55,0.3]].forEach(([f,s,d]) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0, ctx.currentTime + s);
+        g.gain.linearRampToValueAtTime(0.35, ctx.currentTime + s + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + s + d);
+        o.start(ctx.currentTime + s); o.stop(ctx.currentTime + s + d + 0.05);
+      });
+    } catch(e) {}
+  }
+
+  async function requestNotif() {
+    if (!('Notification' in window)) { addLog('error', 'Browser does not support notifications'); return; }
+    const p = await Notification.requestPermission();
+    addLog('info', `Notification permission: ${p}`);
+  }
+
+  function sendNotif(sections) {
+    if (Notification.permission === 'granted') {
+      const names = sections.map(s => `${s.raw} NT$${s.price}`).join(', ');
+      new Notification('🎟 BTS TICKETS AVAILABLE NOW', { body: names });
+    }
+  }
+
+  // ── Fetch via proxy ────────────────────────────────────────────────────────
+  async function fetchViaProxy(url) {
+    const proxy = PROXIES[selectedProxy];
+    const proxyUrl = proxy.build(url);
+    document.getElementById('proxy-status').textContent = `using ${proxy.name}...`;
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error(`Proxy returned ${res.status}`);
+    const html = await proxy.extract(res);
+    document.getElementById('proxy-status').textContent = `✓ ${proxy.name}`;
+    return html;
+  }
+
+  // ── Parse ──────────────────────────────────────────────────────────────────
+  function parseTicketPage(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const sections = {};
+
+    doc.querySelectorAll('.area-list li').forEach(li => {
+      const anchor = li.querySelector('a');
+      const soldFont = li.querySelector('font[color="#AAAAAA"]');
+
+      if (anchor) {
+        const href = anchor.getAttribute('href') || '';
+        const rawText = anchor.textContent.trim();
+        const priceMatch = rawText.match(/(\d{3,6})\s*$/);
+        const price = priceMatch ? priceMatch[1] : null;
+        const name = price ? rawText.replace(price, '').trim() : rawText;
+        sections[name] = {
+          status: 'available', price, raw: rawText,
+          href: href.startsWith('http') ? href : BASE + href
+        };
+      } else if (soldFont) {
+        const rawText = soldFont.textContent.trim().replace(/Sold out/gi, '').trim();
+        const priceMatch = rawText.match(/(\d{3,6})\s*$/);
+        const price = priceMatch ? priceMatch[1] : null;
+        const name = price ? rawText.replace(price, '').trim() : rawText;
+        sections[name] = { status: 'sold', price, raw: rawText, href: null };
+      }
+    });
+
+    return sections;
+  }
+
+  // ── Poll ───────────────────────────────────────────────────────────────────
+  async function poll() {
+    try {
+      const html = await fetchViaProxy(TARGET_URL);
+      const sections = parseTicketPage(html);
+      const keys = Object.keys(sections);
+
+      if (keys.length === 0) {
+        addLog('error', 'Could not parse sections — try a different proxy');
+        return;
+      }
+
+      const availKeys = keys.filter(k => sections[k].status === 'available');
+      const soldCount = keys.length - availKeys.length;
+
+      const newlyAvailable = firstPoll ? [] : keys.filter(k =>
+        sections[k].status === 'available' &&
+        prevSections[k] && prevSections[k].status === 'sold'
+      );
+
+      document.getElementById('stat-total').textContent = keys.length;
+      document.getElementById('stat-sold').textContent = soldCount;
+      document.getElementById('stat-avail').textContent = availKeys.length;
+
+      renderAvailPanel(availKeys.map(k => sections[k]), newlyAvailable);
+      renderSections(sections, newlyAvailable);
+
+      const badge = document.getElementById('section-badge');
+      if (availKeys.length > 0) {
+        badge.className = 'section-badge badge-avail';
+        badge.textContent = `${availKeys.length} SECTION${availKeys.length > 1 ? 'S' : ''} OPEN`;
+      } else {
+        badge.className = 'section-badge badge-sold';
+        badge.textContent = 'ALL SOLD OUT';
+      }
+
+      if (newlyAvailable.length > 0) {
+        const newData = newlyAvailable.map(k => sections[k]);
+        addLog('alert', `ALERT: ${newlyAvailable.length} section(s) just opened — ${newlyAvailable.join(', ')}`);
+        playAlert();
+        sendNotif(newData);
+        showAlertOverlay(newData);
+      } else if (availKeys.length > 0 && firstPoll) {
+        addLog('alert', `${availKeys.length} section(s) already available on first poll`);
+      } else {
+        addLog('info', `All ${soldCount} sections still sold out`);
+      }
+
+      prevSections = JSON.parse(JSON.stringify(sections));
+      firstPoll = false;
+
+    } catch(e) {
+      addLog('error', `Proxy failed: ${e.message} — try a different proxy`);
+      document.getElementById('proxy-status').textContent = '✗ failed';
+    }
+  }
+
+  // ── Render available panel ─────────────────────────────────────────────────
+  function renderAvailPanel(availSections, newlyAvailableNames) {
+    const panel = document.getElementById('avail-panel');
+    const list = document.getElementById('avail-list');
+    if (availSections.length === 0) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+    document.getElementById('avail-count').textContent = `${availSections.length} section${availSections.length > 1 ? 's' : ''} open`;
+    list.innerHTML = '';
+    availSections.forEach(s => {
+      const isNew = newlyAvailableNames.includes(s.name || s.raw);
+      const card = document.createElement('div');
+      card.className = `ticket-card ${isNew ? 'new' : ''}`;
+      card.innerHTML = `
+        <div class="ticket-name">${s.raw}${isNew ? '<small>★ JUST OPENED</small>' : '<small>AVAILABLE</small>'}</div>
+        <div class="ticket-price">NT$ ${s.price || '?'}</div>
+        <a class="buy-btn" href="${s.href}" target="_blank" rel="noopener">BUY NOW ↗</a>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  // ── Render all sections ────────────────────────────────────────────────────
+  function renderSections(sections, newlyAvailable) {
+    const list = document.getElementById('section-list');
+    list.innerHTML = '';
+    Object.keys(sections).sort().forEach(k => {
+      const s = sections[k];
+      const isNew = newlyAvailable.includes(k);
+      const div = document.createElement('div');
+      div.className = `section-item ${isNew ? 'new-available' : s.status}`;
+      const priceSpan = s.price ? `<span class="section-price">NT$ ${s.price}</span>` : '<span></span>';
+      const linkSpan = s.status === 'available' && s.href
+        ? `<a class="section-link" href="${s.href}" target="_blank" rel="noopener">BUY ↗</a>`
+        : `<span style="font-family:var(--mono);font-size:10px;color:var(--red);letter-spacing:1px;">SOLD</span>`;
+      div.innerHTML = `<span>${k}</span>${priceSpan}${linkSpan}`;
+      list.appendChild(div);
+    });
+  }
+
+  // ── Alert overlay ──────────────────────────────────────────────────────────
+  function showAlertOverlay(sections) {
+    const el = document.getElementById('alert-overlay');
+    document.getElementById('alert-body-text').textContent = `${sections.length} section(s) just became available:`;
+    const linksEl = document.getElementById('alert-links');
+    linksEl.innerHTML = '';
+    sections.slice(0, 4).forEach(s => {
+      const a = document.createElement('a');
+      a.className = 'alert-buy-link';
+      a.href = s.href; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = `→ ${s.raw} — NT$ ${s.price || '?'}`;
+      linksEl.appendChild(a);
+    });
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 10000);
+  }
+
+  // ── Countdown ──────────────────────────────────────────────────────────────
+  function startCountdown() {
+    countdownVal = INTERVAL / 1000;
+    document.getElementById('countdown-bar').style.display = 'block';
+    clearInterval(countdownInterval);
+    countdownInterval = setInterval(() => {
+      countdownVal--;
+      const pct = (countdownVal / (INTERVAL / 1000)) * 100;
+      document.getElementById('countdown-fill').style.width = pct + '%';
+      document.getElementById('stat-next').textContent = countdownVal > 0 ? `${countdownVal}s` : '...';
+      if (countdownVal <= 0) countdownVal = INTERVAL / 1000;
+    }, 1000);
+  }
+
+  // ── Monitor control ────────────────────────────────────────────────────────
+  function startMonitor() {
+    firstPoll = true; prevSections = {};
+    document.getElementById('btn-start').style.display = 'none';
+    document.getElementById('btn-stop').style.display = 'inline-block';
+    document.getElementById('status-pill').classList.add('active');
+    document.getElementById('status-text').textContent = 'MONITORING';
+    addLog('info', `Started via ${PROXIES[selectedProxy].name} → ${TARGET_URL}`);
+    poll();
+    monitorInterval = setInterval(() => { poll(); startCountdown(); }, INTERVAL);
+    startCountdown();
+  }
+
+  function stopMonitor() {
+    clearInterval(monitorInterval); clearInterval(countdownInterval); monitorInterval = null;
+    document.getElementById('btn-start').style.display = 'inline-block';
+    document.getElementById('btn-stop').style.display = 'none';
+    document.getElementById('status-pill').classList.remove('active');
+    document.getElementById('status-text').textContent = 'IDLE';
+    document.getElementById('stat-next').textContent = '--';
+    document.getElementById('countdown-bar').style.display = 'none';
+    addLog('info', 'Monitor stopped.');
+  }
+
+  // ── Log ────────────────────────────────────────────────────────────────────
+  function addLog(type, msg) {
+    const body = document.getElementById('log-body');
+    const empty = body.querySelector('.log-empty');
+    if (empty) empty.remove();
+    const row = document.createElement('div');
+    row.className = `log-row ${type}`;
+    row.innerHTML = `<span>${new Date().toLocaleTimeString()}</span><span>${type.toUpperCase()}</span><span>${msg}</span>`;
+    body.prepend(row);
+    while (body.children.length > 120) body.lastChild.remove();
+  }
+
+  function clearLog() {
+    document.getElementById('log-body').innerHTML = '<div class="log-empty">Log cleared.</div>';
+  }
+</script>
+</body>
+</html>
