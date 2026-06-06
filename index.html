@@ -12,6 +12,7 @@
     --accent: #e8ff47; --accent-dim: rgba(232,255,71,0.10); --accent-glow: rgba(232,255,71,0.25);
     --green: #2ed573; --green-dim: rgba(46,213,115,0.12);
     --red: #ff4757; --red-dim: rgba(255,71,87,0.12);
+    --orange: #ffaa00; --orange-dim: rgba(255,170,0,0.10);
     --text: #f0f0f0; --text-dim: #888; --text-muted: #444;
     --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif; --display: 'Bebas Neue', sans-serif;
   }
@@ -57,21 +58,18 @@
   .event-meta span { display: flex; align-items: center; gap: 6px; }
   .event-meta span::before { content: '▸'; color: var(--accent); font-size: 8px; }
 
-  /* proxy selector */
-  .proxy-bar {
+  /* checklist */
+  .checklist {
     background: #0d0d0d; border: 1px solid var(--border); border-left: 3px solid var(--accent);
-    border-radius: 0 3px 3px 0; padding: 14px 18px;
-    font-family: var(--mono); font-size: 11px; line-height: 2; color: var(--text-dim);
+    border-radius: 0 3px 3px 0; padding: 16px 20px;
+    font-family: var(--mono); font-size: 11px; line-height: 2.2; color: var(--text-dim);
   }
-  .proxy-bar strong { color: var(--accent); }
-  .proxy-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-  .proxy-btn {
-    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
-    padding: 7px 14px; border-radius: 3px; border: 1px solid var(--border-bright);
-    background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.15s;
-  }
-  .proxy-btn.selected { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-  .proxy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .checklist strong { color: var(--accent); display: block; margin-bottom: 4px; font-size: 12px; }
+  .check-row { display: flex; align-items: center; gap: 10px; }
+  .check-icon { font-size: 14px; width: 20px; text-align: center; }
+  .check-ok { color: var(--green); }
+  .check-warn { color: var(--orange); }
+  .check-fail { color: var(--red); }
 
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
   .stat { background: #0a0a0a; border: 1px solid var(--border); border-radius: 3px; padding: 16px; }
@@ -126,9 +124,8 @@
     padding: 9px 16px; border-radius: 3px; text-decoration: none;
     background: var(--green); color: #000; font-weight: 500; transition: all 0.15s; white-space: nowrap;
   }
-  .buy-btn:hover { background: #4dffa0; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(46,213,115,0.3); }
+  .buy-btn:hover { background: #4dffa0; transform: translateY(-1px); }
   .ticket-card.new .buy-btn { background: var(--accent); }
-  .ticket-card.new .buy-btn:hover { background: #f2ff6e; }
 
   .section-wrapper { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
   .section-header {
@@ -161,7 +158,7 @@
   .new-available .section-link { background: var(--accent); }
 
   .log-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
-  .log-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border); background: #0d0d0d; }
+  .log-head { padding: 14px 20px; border-bottom: 1px solid var(--border); background: #0d0d0d; }
   .log-head-label { font-family: var(--mono); font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); }
   #log-body { max-height: 260px; overflow-y: auto; }
   .log-row {
@@ -173,7 +170,7 @@
   .log-row.info { color: var(--text-muted); }
   .log-row.alert { background: var(--green-dim); color: var(--green); }
   .log-row.error { background: var(--red-dim); color: var(--red); }
-  .log-row.warn { background: rgba(255,170,0,0.08); color: #ffaa00; }
+  .log-row.warn { background: var(--orange-dim); color: var(--orange); }
   .log-empty { padding: 28px; text-align: center; font-family: var(--mono); font-size: 12px; color: var(--text-muted); }
 
   #alert-overlay {
@@ -190,7 +187,6 @@
     font-family: var(--mono); font-size: 11px; padding: 7px 12px; border-radius: 2px;
     text-decoration: none; letter-spacing: 1px;
   }
-  .alert-buy-link:hover { background: #111; }
 
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -228,15 +224,20 @@
     </div>
   </div>
 
-  <!-- Proxy selector -->
-  <div class="proxy-bar">
-    <strong>NO EXTENSION NEEDED.</strong> Select a proxy below — the tool will route through it automatically.<br>
-    If one proxy fails, stop and try the next one.
-    <div class="proxy-row">
-      <button class="proxy-btn selected" onclick="selectProxy(0, this)">corsproxy.io</button>
-      <button class="proxy-btn" onclick="selectProxy(1, this)">allorigins.win</button>
-      <button class="proxy-btn" onclick="selectProxy(2, this)">api.codetabs.com</button>
-      <span id="proxy-status" style="font-size:10px;color:var(--text-muted);margin-left:4px;"></span>
+  <!-- Setup checklist -->
+  <div class="checklist">
+    <strong>BEFORE YOU START — check all three:</strong>
+    <div class="check-row">
+      <span class="check-icon" id="chk-https">⏳</span>
+      <span id="chk-https-label">Checking if page is on https...</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" id="chk-cors">⏳</span>
+      <span>CORS Unblock extension is ON (click the extension icon → hit Start/Restart)</span>
+    </div>
+    <div class="check-row">
+      <span class="check-icon" id="chk-notif">⏳</span>
+      <span id="chk-notif-label">Notifications — click Allow Notifications below</span>
     </div>
   </div>
 
@@ -278,12 +279,8 @@
   </div>
 
   <div class="log-wrap">
-    <div class="log-head">
-      <span class="log-head-label">Activity Log</span>
-    </div>
-    <div id="log-body">
-      <div class="log-empty">No activity yet.</div>
-    </div>
+    <div class="log-head"><span class="log-head-label">Activity Log</span></div>
+    <div id="log-body"><div class="log-empty">No activity yet.</div></div>
   </div>
 
 </main>
@@ -293,37 +290,40 @@
   const TARGET_URL = BASE + '/ticket/area/26_btskns/22764';
   const INTERVAL = 30000;
 
-  // ── Proxy configs — no cookie needed, proxy fetches the public HTML ──────
-  const PROXIES = [
-    {
-      name: 'corsproxy.io',
-      build: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-      extract: async res => await res.text()
-    },
-    {
-      name: 'allorigins.win',
-      build: url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
-      extract: async res => { const j = await res.json(); return j.contents; }
-    },
-    {
-      name: 'api.codetabs.com',
-      build: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-      extract: async res => await res.text()
-    }
-  ];
-
-  let selectedProxy = 0;
   let monitorInterval = null;
   let countdownInterval = null;
   let countdownVal = 0;
   let prevSections = {};
   let firstPoll = true;
 
-  function selectProxy(idx, btn) {
-    selectedProxy = idx;
-    document.querySelectorAll('.proxy-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-    document.getElementById('proxy-status').textContent = '';
+  // ── Startup checks ─────────────────────────────────────────────────────────
+  function runChecks() {
+    // HTTPS check
+    const isHttps = location.protocol === 'https:';
+    document.getElementById('chk-https').textContent = isHttps ? '✓' : '✗';
+    document.getElementById('chk-https').className = 'check-icon ' + (isHttps ? 'check-ok' : 'check-fail');
+    document.getElementById('chk-https-label').textContent = isHttps
+      ? 'Running on https — good'
+      : 'NOT on https — notifications and CORS extension may not work';
+
+    // Notification check
+    updateNotifCheck();
+  }
+
+  function updateNotifCheck() {
+    const perm = Notification.permission;
+    const icon = document.getElementById('chk-notif');
+    const label = document.getElementById('chk-notif-label');
+    if (perm === 'granted') {
+      icon.textContent = '✓'; icon.className = 'check-icon check-ok';
+      label.textContent = 'Notifications allowed';
+    } else if (perm === 'denied') {
+      icon.textContent = '✗'; icon.className = 'check-icon check-fail';
+      label.textContent = 'Notifications blocked — go to Chrome Settings → Site Settings → Notifications to allow';
+    } else {
+      icon.textContent = '⏳'; icon.className = 'check-icon check-warn';
+      label.textContent = 'Notifications not yet allowed — click Allow Notifications';
+    }
   }
 
   // ── Audio ──────────────────────────────────────────────────────────────────
@@ -345,26 +345,31 @@
   async function requestNotif() {
     if (!('Notification' in window)) { addLog('error', 'Browser does not support notifications'); return; }
     const p = await Notification.requestPermission();
-    addLog('info', `Notification permission: ${p}`);
+    updateNotifCheck();
+    addLog(p === 'granted' ? 'info' : 'warn', `Notification permission: ${p}`);
   }
 
   function sendNotif(sections) {
     if (Notification.permission === 'granted') {
-      const names = sections.map(s => `${s.raw} NT$${s.price}`).join(', ');
-      new Notification('🎟 BTS TICKETS AVAILABLE NOW', { body: names });
+      new Notification('🎟 BTS TICKETS AVAILABLE NOW', {
+        body: sections.map(s => `${s.raw} NT$${s.price}`).join(', ')
+      });
     }
   }
 
-  // ── Fetch via proxy ────────────────────────────────────────────────────────
-  async function fetchViaProxy(url) {
-    const proxy = PROXIES[selectedProxy];
-    const proxyUrl = proxy.build(url);
-    document.getElementById('proxy-status').textContent = `using ${proxy.name}...`;
-    const res = await fetch(proxyUrl);
-    if (!res.ok) throw new Error(`Proxy returned ${res.status}`);
-    const html = await proxy.extract(res);
-    document.getElementById('proxy-status').textContent = `✓ ${proxy.name}`;
-    return html;
+  // ── Fetch — direct with credentials (requires CORS Unblock extension) ─────
+  async function fetchPage() {
+    const res = await fetch(TARGET_URL, {
+      method: 'GET',
+      credentials: 'include',   // sends your Tixcraft session cookie automatically
+      mode: 'cors',
+      headers: { 'Accept': 'text/html' }
+    });
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`${res.status} — make sure CORS Unblock extension is ON and you are logged into tixcraft.com`);
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.text();
   }
 
   // ── Parse ──────────────────────────────────────────────────────────────────
@@ -372,21 +377,16 @@
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     const sections = {};
-
     doc.querySelectorAll('.area-list li').forEach(li => {
       const anchor = li.querySelector('a');
       const soldFont = li.querySelector('font[color="#AAAAAA"]');
-
       if (anchor) {
         const href = anchor.getAttribute('href') || '';
         const rawText = anchor.textContent.trim();
         const priceMatch = rawText.match(/(\d{3,6})\s*$/);
         const price = priceMatch ? priceMatch[1] : null;
         const name = price ? rawText.replace(price, '').trim() : rawText;
-        sections[name] = {
-          status: 'available', price, raw: rawText,
-          href: href.startsWith('http') ? href : BASE + href
-        };
+        sections[name] = { status: 'available', price, raw: rawText, href: href.startsWith('http') ? href : BASE + href };
       } else if (soldFont) {
         const rawText = soldFont.textContent.trim().replace(/Sold out/gi, '').trim();
         const priceMatch = rawText.match(/(\d{3,6})\s*$/);
@@ -395,28 +395,25 @@
         sections[name] = { status: 'sold', price, raw: rawText, href: null };
       }
     });
-
     return sections;
   }
 
   // ── Poll ───────────────────────────────────────────────────────────────────
   async function poll() {
     try {
-      const html = await fetchViaProxy(TARGET_URL);
+      const html = await fetchPage();
       const sections = parseTicketPage(html);
       const keys = Object.keys(sections);
 
       if (keys.length === 0) {
-        addLog('error', 'Could not parse sections — try a different proxy');
+        addLog('error', 'Parsed 0 sections — CORS Unblock may not be active. Click its icon and hit Restart, then try again.');
         return;
       }
 
       const availKeys = keys.filter(k => sections[k].status === 'available');
       const soldCount = keys.length - availKeys.length;
-
       const newlyAvailable = firstPoll ? [] : keys.filter(k =>
-        sections[k].status === 'available' &&
-        prevSections[k] && prevSections[k].status === 'sold'
+        sections[k].status === 'available' && prevSections[k] && prevSections[k].status === 'sold'
       );
 
       document.getElementById('stat-total').textContent = keys.length;
@@ -451,12 +448,11 @@
       firstPoll = false;
 
     } catch(e) {
-      addLog('error', `Proxy failed: ${e.message} — try a different proxy`);
-      document.getElementById('proxy-status').textContent = '✗ failed';
+      addLog('error', e.message);
     }
   }
 
-  // ── Render available panel ─────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   function renderAvailPanel(availSections, newlyAvailableNames) {
     const panel = document.getElementById('avail-panel');
     const list = document.getElementById('avail-list');
@@ -477,7 +473,6 @@
     });
   }
 
-  // ── Render all sections ────────────────────────────────────────────────────
   function renderSections(sections, newlyAvailable) {
     const list = document.getElementById('section-list');
     list.innerHTML = '';
@@ -495,7 +490,6 @@
     });
   }
 
-  // ── Alert overlay ──────────────────────────────────────────────────────────
   function showAlertOverlay(sections) {
     const el = document.getElementById('alert-overlay');
     document.getElementById('alert-body-text').textContent = `${sections.length} section(s) just became available:`;
@@ -519,8 +513,7 @@
     clearInterval(countdownInterval);
     countdownInterval = setInterval(() => {
       countdownVal--;
-      const pct = (countdownVal / (INTERVAL / 1000)) * 100;
-      document.getElementById('countdown-fill').style.width = pct + '%';
+      document.getElementById('countdown-fill').style.width = (countdownVal / (INTERVAL/1000) * 100) + '%';
       document.getElementById('stat-next').textContent = countdownVal > 0 ? `${countdownVal}s` : '...';
       if (countdownVal <= 0) countdownVal = INTERVAL / 1000;
     }, 1000);
@@ -533,7 +526,7 @@
     document.getElementById('btn-stop').style.display = 'inline-block';
     document.getElementById('status-pill').classList.add('active');
     document.getElementById('status-text').textContent = 'MONITORING';
-    addLog('info', `Started via ${PROXIES[selectedProxy].name} → ${TARGET_URL}`);
+    addLog('info', `Started — fetching directly with your Tixcraft session`);
     poll();
     monitorInterval = setInterval(() => { poll(); startCountdown(); }, INTERVAL);
     startCountdown();
@@ -565,6 +558,9 @@
   function clearLog() {
     document.getElementById('log-body').innerHTML = '<div class="log-empty">Log cleared.</div>';
   }
+
+  // Run on load
+  runChecks();
 </script>
 </body>
 </html>
